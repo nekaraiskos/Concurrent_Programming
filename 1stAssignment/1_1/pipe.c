@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include "pipe.h"
 
-
 //Initialize pipe_array. It will contain the pointers to all the set pipes
 static pipe** pipe_array = NULL;
 static int id_num = 0;
