@@ -6,15 +6,15 @@ CFLAGS = -Wall -g
 TARGET = main
 
 # Ορισμός των αντικειμενικών αρχείων που θα παραχθούν από τα .c αρχεία
-OBJS = main.o pipe.o
+OBJS = test.o pipe.o
 
 # Ο κανόνας για τη δημιουργία του εκτελέσιμου αρχείου
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) -lpthread
 
 # Κανόνας για τη δημιουργία του main.o
-main.o: main.c pipe.h
-	$(CC) $(CFLAGS) -c main.c
+test.o: test.c pipe.h
+	$(CC) $(CFLAGS) -c test.c
 
 # Κανόνας για τη δημιουργία του pipe.o
 pipe.o: pipe.c pipe.h
