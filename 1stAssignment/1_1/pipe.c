@@ -45,11 +45,11 @@ int pipe_open(int size) {
         new_pipe_array[id_num-1] = new_pipe;
         pipe_array = new_pipe_array;
         //Print all pipe ids for the test
-        printf("Pipes: ");
-        for(i = 0; i < num_pipes; i++) {
-            printf("%d, ", pipe_array[i]->id);
-        }
-        putchar('\n');
+        // printf("Pipes: ");
+        // for(i = 0; i < num_pipes; i++) {
+        //     printf("%d, ", pipe_array[i]->id);
+        // }
+        // putchar('\n');
     }
     // pipe_array = new_pipe_array;
     else {
@@ -109,7 +109,7 @@ int delete_pipe(int p) {
 // Close the pipe when write is completed
 int pipe_writeDone(int p)
 {
-    printf("I am in WriteDone you fuckers\n");
+    // printf("I am in WriteDone you fuckers\n");
     pipe *pipe = find_pipe(p); //************MOVEWRITEPOS?*******
     if (pipe != NULL)
     {
@@ -132,7 +132,7 @@ int check_to_read (pipe* pipe) {
     else next_pos = pipe->read_pos + 1;
 
     //don't read if nothing has been written in the pipe or if the next position is being written
-    if (pipe->write_pos == -1 || (pipe->write_open == 1 && next_pos == pipe->write_pos && pipe->buffer[next_pos] == '\0')) {
+    if (pipe->write_pos == -1 || (pipe->write_open == 1 && pipe->buffer[next_pos] == '\0')) {
         return 0;
     }
     else {
@@ -151,7 +151,7 @@ int pipe_read(int p, char *c) {
     pipe *pipe = find_pipe(p);
     if (pipe != NULL && check_to_read(pipe) != -1) {
         
-        printf("in pipe read: pipe: %d, read_pos: %d, write_open: %d\n", pipe->id, pipe->read_pos, pipe->write_open);
+        // printf("in pipe read: pipe: %d, read_pos: %d, write_open: %d\n", pipe->id, pipe->read_pos, pipe->write_open);
 
         int next_pos = 0;
         int i;//testing integer
@@ -162,10 +162,10 @@ int pipe_read(int p, char *c) {
             next_pos = 0;
         }
         else next_pos = pipe->read_pos + 1;
-        printf("Next position: %d\nNext position char: %c\n", next_pos, pipe->buffer[next_pos]);
+        // printf("Next position: %d\nNext position char: %c\n", next_pos, pipe->buffer[next_pos]);
 
         if (pipe->write_open == 0 && pipe->buffer[next_pos] == '\0') {
-            printf ("Before delete\n");
+            // printf ("Before delete\n");
             delete_pipe(pipe->id);
             return 0;
         }
@@ -174,11 +174,11 @@ int pipe_read(int p, char *c) {
             pipe->buffer[next_pos] = '\0';
 
             pipe->read_pos = next_pos;
-            printf("Total pipe buffer contents: ");
-            for(i = 0; i < pipe->size; i++) {
-                printf("%c ", pipe->buffer[i]);
-            }
-            printf("\n");
+            // printf("Total pipe buffer contents: ");
+            // for(i = 0; i < pipe->size; i++) {
+            //     printf("%c ", pipe->buffer[i]);
+            // }
+            // printf("\n");
             //printf("Read on pipe with id %d, on buffer position %d, addr %p, character %c, new read position %d\n", pipe->id, next_pos, c, *c, pipe->read_pos);
             return 1;
         }
@@ -233,12 +233,12 @@ int pipe_write(int p, char c) {
             pipe->write_pos = 0;
         }
         pipe->buffer[pipe->write_pos] = c;
-        printf("For pipe %d, wrote on position %d, character %c\n", pipe->id, pipe->write_pos, c);
-        printf("Total pipe buffer contents: ");
-        for(i = 0; i < pipe->size; i++) {
-            printf("%c ", pipe->buffer[i]);
-        }
-        printf("\n");
+        // printf("For pipe %d, wrote on position %d, character %c\n", pipe->id, pipe->write_pos, c);
+        // printf("Total pipe buffer contents: ");
+        // for(i = 0; i < pipe->size; i++) {
+        //     printf("%c ", pipe->buffer[i]);
+        // }
+        // printf("\n");
         return 1;
     }
     

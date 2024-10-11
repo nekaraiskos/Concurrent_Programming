@@ -47,7 +47,7 @@ void *thread1_op(void *arg) {
             break;
         }
         pipe_write(ids->pipe1_id, curr_c);
-        printf("Just put char %c on pipe 1\n", curr_c);
+        // printf("Just put char %c on pipe 1\n", curr_c);
     }
     while(curr_c != EOF);
 
@@ -115,7 +115,7 @@ void *thread2_op(void *arg) {
             break;
         }
         pipe_write(ids->pipe2_id, curr_c);
-        printf("Just put char %c on pipe 2\n", curr_c);
+        // printf("Just put char %c on pipe 2\n", curr_c);
     }
     while(curr_c != EOF);
 
