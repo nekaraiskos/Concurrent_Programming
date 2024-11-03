@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// #include <unistd.h>
-// #include <fcntl.h>
 #include "pipe.h"
 
 #define FILENAME "input"
@@ -13,8 +11,8 @@ typedef struct {
     int pipe2_id;  
 }pipe_ids;
 
-static int read_complete = 0;
-static int program_complete = 0;
+static int read_complete = 0;           //flag that indicates when the reading is complete
+static int program_complete = 0;        //flag that indicates when the program is complete
 
 /*
 Function for the first thread.
@@ -24,20 +22,20 @@ Read every character from the second pipe opened by the other thread and save it
 Compare original file with the second copy. If they are the same, the process is a success 
 */
 void *thread1_op(void *arg) {
-    pipe_ids *ids = (pipe_ids *)arg;
+    pipe_ids *ids = (pipe_ids *)arg;        //arguments of the first thread
     FILE* input_text_file;
     FILE* copy2_text_file;
-    // char text_buffer;
-    // int copy2_fd;
+
+    //allocate memory for char to be read
     char *data = (char*)malloc(sizeof(char));
-    char curr_c = '\0';
+    //char to be written
+    char curr_c = '\0'; 
     
     input_text_file = fopen(FILENAME, "r"); //Opening the file only for reading
 
-    //Check if the file opened
+    //Check if the file opened successfully
     if (input_text_file < 0) {
         perror("Thread 1:input.txt cannot open");
-        // write_complete = 1;  // Writing is done if the is an error
     }  
 
     //While we have not reached the end of the input file, scan each character and write them into the pipe
@@ -47,57 +45,60 @@ void *thread1_op(void *arg) {
             break;
         }
         pipe_write(ids->pipe1_id, curr_c);
-        printf("Just put char %c on pipe 1\n", curr_c);
+        //printf("Just put char %c on pipe 1\n", curr_c);
     }
     while(curr_c != EOF);
 
     fclose(input_text_file); // Closing the input file
 
+    //write completed for the first pipe
     pipe_writeDone(ids->pipe1_id);
 
-    // write_complete = 1;
-
-    //waiting for the reaiding to complete
+    //waiting for the reading to complete (spin)
     while(read_complete == 0);
 
-    copy2_text_file = fopen(FILENAME ".copy2", "a+");
+    //open the copy2 file
+    copy2_text_file = fopen(FILENAME ".copy2", "w+");
     if(copy2_text_file < 0) {
         perror("Thread 1:Did not create copy2.txt");
         return NULL;
     }
 
+    //write from the second pipe to the copy2 file
     while(pipe_read(ids->pipe2_id, data) == 1) {
         fprintf(copy2_text_file, "%c", *data);
     }
     fclose(copy2_text_file); 
 
+    //set flag that the program finished and free the data array
     program_complete = 1;
     free(data);
 
     return NULL;
-
 } 
 
 void *thread2_op(void *arg) {
-    pipe_ids *ids = (pipe_ids *)arg;
-    // FILE* input_text_file;
+    pipe_ids *ids = (pipe_ids *)arg;            // arguments of the second thread
     FILE* copy_text_file;
-    // char text_buffer;
-    // int copy2_fd;
+
+    //allocate memory for char to be read
     char *data = (char*)malloc(sizeof(char));
     char curr_c = '\0';
 
-    copy_text_file = fopen(FILENAME ".copy", "a+");
+    //open file for reading and writing
+    copy_text_file = fopen(FILENAME ".copy", "w+");
     if(copy_text_file < 0) {
         perror("Thread 2:Did not create copy");
         return NULL;
     }
 
+    //write from the first pipe to the copy file
     while(pipe_read(ids->pipe1_id, data) == 1) {
         fprintf(copy_text_file, "%c", *data);
     }
     fclose(copy_text_file);
 
+    //set flag for read completed
     read_complete = 1;
 
     copy_text_file = fopen(FILENAME ".copy", "r"); //Opening the file only for reading
@@ -105,22 +106,22 @@ void *thread2_op(void *arg) {
     //Check if the file opened
     if (copy_text_file < 0) {
         perror("Thread 2:input.copy cannot open");
-        // write_complete = 1;  // Writing is done if the is an error
     }  
 
-    //While we have not reached the end of the input file, scan each character and write them into the pipe
+    //While we have not reached the end of the input file, scan each character and write them into the second pipe
     do {
         curr_c = fgetc(copy_text_file);
         if(curr_c == EOF) {
             break;
         }
         pipe_write(ids->pipe2_id, curr_c);
-        printf("Just put char %c on pipe 2\n", curr_c);
+        //printf("Just put char %c on pipe 2\n", curr_c);
     }
     while(curr_c != EOF);
 
     fclose(copy_text_file); // Closing the input file
 
+    //set flag that write operation is done and free the data array
     pipe_writeDone(ids->pipe2_id);
     free(data);
     return NULL;
@@ -136,7 +137,6 @@ void *thread2_op(void *arg) {
 int main(int argc, char *argv[]) {
 
     pthread_t thread1, thread2;
-    int pipe_id;
     pipe_ids ids;
 
     //If the user did not enter a size , print a message to remind him
@@ -171,14 +171,7 @@ int main(int argc, char *argv[]) {
 
     // waiting for the threads to finish writing and reading
     while(program_complete == 0);
-
     printf("Main finished\n");
-    // free(&thread1);
-    // free(thread2);
-    // pthread_exit(&thread1);
-    // pthread_exit(&thread2);
-    pthread_detach(thread1);
-    pthread_detach(thread2);
 
     return 0;
 }

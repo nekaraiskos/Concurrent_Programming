@@ -3,11 +3,11 @@
 
 //Define FIFO pipe / ring buffer struct used to transfer characters between the threads
 typedef struct {
-    char* buffer;
-    int size;
-    int read_pos, write_pos;
-    int id;
-    int write_open;
+    char* buffer;               //FIFO buffer
+    int size;                   //total capacity of buffer in bytes
+    int read_pos, write_pos;    //index to read and write postion of buffer
+    int id;                     //pipe id
+    int write_open;             //flag to indicate if the pipe is open for write
 }pipe;
 
 //Open a new pipe for reading and writing and return its id to user

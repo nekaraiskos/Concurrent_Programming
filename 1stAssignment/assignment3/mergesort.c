@@ -2,15 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
-static char* input_file_name;
+static char* input_file_name; //string  to store the name of the file
 
-//Arguments passed from parent thread to children
-typedef struct {
-    int left;
-    int right;
-    int size_of_section;
-    int comm_flag;
+    // Arguments passed from parent thread to children
+    typedef struct
+{
+    int left;               //left position of the section
+    int right;              //right position of the section
+    int size_of_section;    //size of the section
+    int comm_flag;          //flag to indicate if the thread is done or is 0 if it is not done
 } thread_data;
 
 //quicksort swap
@@ -62,6 +64,71 @@ void quickSort(int arr[], int low, int high) {
     }
 }
 
+//Merge function
+int merge(thread_data curr){
+
+    int left;  // left position
+    int mid;   // mid position
+    int right; //right position
+    int pos;   //position initialized to mid and moves
+    int left_value,right_value, temp, value; //variables to keep the integers and to comparisons
+    FILE *input_file; 
+    int i=0;   //counter
+
+    //initialize the positions with the data of the thread
+    left = curr.left; 
+    mid = curr.left + ceil((curr.right - curr.left)/2)+1;
+    pos = mid;
+    right = curr.right;
+
+    //opening the file
+    input_file = fopen(input_file_name, "rb+");
+    if (!input_file)
+    {
+        perror("Failed to open file");
+        exit(EXIT_FAILURE);
+    }
+    temp = 0;
+
+    while(left < mid && pos<=right){
+        fseek(input_file, left * sizeof(int), SEEK_SET); // Move to the correct position
+        fread(&left_value, sizeof(int), 1, input_file);        // Read the left integer
+
+        fseek(input_file, pos * sizeof(int), SEEK_SET); // Move to the correct position
+        fread(&right_value, sizeof(int), 1, input_file);        // Read the right integer
+
+        if(left_value<=right_value){
+
+            left++;
+        }
+        else{
+           
+            temp = right_value; //keep the right_value to an new variable
+           
+            //shift the integers in the file
+            for (i = mid; i > left; i--) {
+                fseek(input_file, (i-1) * sizeof(int), SEEK_SET);  // Move to the correct position
+                fread(&value, sizeof(int), 1, input_file); // Read the integer
+
+                fseek(input_file, i * sizeof(int), SEEK_SET); // Move to the correct position
+                fwrite(&value, sizeof(int), 1, input_file);   //Write the integer
+                
+            }
+            fseek(input_file, left * sizeof(int), SEEK_SET); // Move to the correct position
+            fwrite(&temp, sizeof(int), 1, input_file); //Write the integer
+    
+            //adding one to the positions to check the next integers
+            left++;
+            pos++;
+            mid++;
+        }
+  
+    }
+    fclose(input_file);
+
+    return 1;
+}
+
 //Thread function
 void* thread_child(void* arg){
 
@@ -77,7 +144,7 @@ void* thread_child(void* arg){
     //If you have to handle more than 64 integers on this file's section, split into 2 thread children
     if(curr->size_of_section>64){
         //Create data and pass it to children
-        mid = curr->left + (curr->right - curr->left)/2 ;
+        mid = curr->left + (curr->right - curr->left)/2;
 
         left_child_data.left = curr->left;
 
@@ -91,16 +158,9 @@ void* thread_child(void* arg){
 
         right_child_data.size_of_section = curr->right - (mid+1) +1;
 
-        // right_child_data.input_file = fopen(input_file_name, "rb+");
-
-        // left_child_data.input_file = fopen(input_file_name, "rb+");
-
         left_child_data.comm_flag = 0;
 
         right_child_data.comm_flag = 0;
-        //left_child_data.input_file = curr->input_file;
-
-        //right_child_data.input_file = curr->input_file;
 
         //Create 2 children 
         if(pthread_create(&right_child, NULL, thread_child, &right_child_data)!=0){
@@ -113,17 +173,16 @@ void* thread_child(void* arg){
             return 0;
         }
 
-        printf("Info of the left child is %d %d %d\n", left_child_data.left,left_child_data.right,left_child_data.size_of_section);
-        printf("Info of the right child is %d %d %d\n",right_child_data.left,right_child_data.right,right_child_data.size_of_section);
         //Actively wait for the current thread's children threads to finish sorting file
         while(right_child_data.comm_flag == 0 || left_child_data.comm_flag == 0);
-        pthread_detach(left_child);
-        pthread_detach(right_child);
+        printf("\033[31mParent returning with child left %d %d, child right %d %d\033[31m\n", left_child_data.left, left_child_data.right, right_child_data.left, right_child_data.right);
 
-        //Set flag to 1 so the parent thread stops waiting and return
-        printf("Parent of %d %d %d, %d %d %d returning\n", left_child_data.left,left_child_data.right,left_child_data.size_of_section, right_child_data.left,right_child_data.right,right_child_data.size_of_section);
+        //call the merge function so the parrent merge as the returns are happening
+        merge(*curr);
+        printf("\033[36mMerge returned from %d to %d\033[36m\n", curr->left, curr->right);
+
+        // Set flag to 1 so the parent thread stops waiting and return
         curr->comm_flag = 1;
-
     }
     //Perform quicksort on the <=64 integers viewed by the branch on the file and return
     else{
@@ -141,28 +200,23 @@ void* thread_child(void* arg){
         fseek(input_file, curr->left * sizeof(int), SEEK_SET);
         fread(array, sizeof(int), curr->size_of_section, input_file);
 
-        printf("Array entered in quicksort: ");
-        for(int i = 0; i < curr->size_of_section; i++  ){
-            printf("%d ",array[i]);
-        }
-
-        printf("\n");
-
         quickSort(array,0,curr->size_of_section -1);
-        printf("Sorted array after quicksort: ");
+        printf("\033[32mSorted array after quicksort: \033[32m");
         for(int i = 0; i < curr->size_of_section; i++  ){
-            printf("%d ",array[i]);
+            printf("\033[32m%d \033[32m", array[i]);
         }
+        printf("\n");
 
         //Write sorted section back to the file
         fseek(input_file, curr->left * sizeof(int), SEEK_SET);
-        //printf("Writing from %d");
+
         fwrite(array, sizeof(int), curr->size_of_section, input_file);
         fclose(input_file);
 
         free(array);
 
-        curr->comm_flag = 1;
+        curr->comm_flag = 1; //indicates that the thread is finished
+        printf("\033[33mChild finished with left, right and size: %d, %d, %d \033[33m\n", curr->left, curr->right, curr->size_of_section);
 
         return NULL;
 
@@ -170,6 +224,7 @@ void* thread_child(void* arg){
 
     return NULL;
 }
+
 //Print file contents
 void print_file(FILE *filename) {
     int number;
@@ -178,10 +233,10 @@ void print_file(FILE *filename) {
         printf("Error opening file!\n");
         return;
     }
-    printf("PRINTING FINAL FILE NUMBERS\n");
+    printf("\033[35mPRINTING FINAL FILE NUMBERS\033[35m\n");
     // Read and print each integer from the file
     while (fread(&number, sizeof(int), 1, filename)) {
-        printf("%d ", number);
+        printf("\033[35m%d \033[35m", number);
     }
     return;
 }
@@ -189,12 +244,12 @@ void print_file(FILE *filename) {
 
 int main(int argc, char *argv[])
 {
-    FILE *input_file;
-    pthread_t root;
-    thread_data data;
-    int num_of_ints;
-    long file_size;
 
+    FILE *input_file;
+    pthread_t root; //thread for the root
+    thread_data data;
+    int num_of_ints; //number of integers in file
+    long file_size;
 
     // Check if the filename is provided
     if (argc < 2)
@@ -224,60 +279,33 @@ int main(int argc, char *argv[])
     // Calculate number of integers in the file
     num_of_ints = file_size / sizeof(int);
 
+
+    fclose(input_file);
+
+    //initialize data for the root thread
     data.left = 0;
     data.right = num_of_ints-1;
     data.size_of_section=num_of_ints;
     data.comm_flag = 0;
-    // fclose(data.input_file);
+
+    //creating thread for the root
     pthread_create(&root, NULL, thread_child, &data);
 
     printf("Main waiting for children to finish\n");
+
+    //main waiting for the all the threads to finish
     while(data.comm_flag == 0);
-    printf("Main finished\n");
 
-    pthread_detach(root);
-
-    // Close the file
-    fclose(input_file);
+    printf("\033[35mMain finished\033[35m\n");
 
     // Open the .bin file for reading in binary mode
     input_file = fopen(input_file_name, "rb");
     print_file(input_file);
+
     // Close the file
     fclose(input_file);
 
-    // free(input_file_name);
     input_file_name = '\0';
 
     return 0;
 }
-
-
-// Allocate memory for the integers
-    // int *array_print = malloc(num_of_ints * sizeof(int));
-    // if (!array_print)
-    // {
-    //     perror("Failed to allocate memory");
-    //     fclose(input_file);
-    //     exit(EXIT_FAILURE);
-    // }
-
-    // Read integers from the binary file
-    // size_t read_elements = fread(array_print, sizeof(int), num_of_ints, input_file);
-    // if (read_elements != num_of_ints)
-    // {
-    //     fprintf(stderr, "Error reading from file\n");
-    //     free(array_print);
-    //     fclose(input_file);
-    //     exit(EXIT_FAILURE);
-    // }
-
-    // //Print the integers read
-    // printf("Integers read from file:\n");
-    // for (int i = 0; i < num_of_ints; i++)
-    // {
-    //     printf("%d\n", array_print[i]);
-    // }
-
-    // Free the allocated memory
-    // free(array);
